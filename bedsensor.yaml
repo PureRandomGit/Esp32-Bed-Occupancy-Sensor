@@ -1,0 +1,72 @@
+esphome:
+  name: bedsensor
+  friendly_name: Bed Sensor
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: ""
+
+ota:
+  - platform: esphome
+    password: ""
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  ap:
+    ssid: "Bed Sensor"
+
+captive_portal:
+    
+
+globals:
+  - id: bed_threshold
+    type: float
+    initial_value: '50.0'  # default threshold, adjust to be about 10-20 below you pressing gently on it under a mattress
+
+number:
+  - platform: template
+    name: "Bed Sensor Threshold"
+    id: bed_sensor_threshold
+    optimistic: true           # assume set_action succeeds
+    min_value: 0
+    max_value: 1000
+    step: 1
+    unit_of_measurement: "pressure unit"
+    set_action:
+      - lambda: |-
+          id(bed_threshold) = x;
+
+sensor:
+  - platform: adc
+    pin: GPIO4
+    id: fsr_sensor
+    update_interval: 1s
+    attenuation: 11db
+    filters:
+      - multiply: 100
+      - throttle: 5s
+    internal: true
+    unit_of_measurement: "pressure unit"
+
+binary_sensor:
+  - platform: template
+    name: "Occupancy"
+    id: occupancy_state
+    device_class: occupancy
+    lambda: |-
+      return id(fsr_sensor).state > id(bed_threshold);
+    filters:
+      - delayed_on: 500ms
+      - delayed_off: 500ms    
+  
